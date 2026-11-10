@@ -1,0 +1,2 @@
+$ tflint --recursive --format=compact
+Exit code: 0
