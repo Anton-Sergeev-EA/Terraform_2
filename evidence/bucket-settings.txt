@@ -1,0 +1,32 @@
+$ yc storage bucket get terraform-05-state-06e651edaf
+{
+  "name": "terraform-05-state-06e651edaf",
+  "versioning": "VERSIONING_ENABLED",
+  "anonymous_access_flags": {
+    "read": false,
+    "list": false,
+    "config_read": false
+  },
+  "acl": null
+}
+
+$ yc storage s3api list-objects --bucket terraform-05-state-06e651edaf
+{
+  "contents": [
+    {
+      "key": "terraform.tfstate",
+      "last_modified": "2026-11-10T08:01:25.196Z",
+      "etag": "\"12d7d9f53bc0af7fd3fbc86db12cb62d\"",
+      "size": "1152",
+      "owner": {
+        "id": "aje86ak70stgu5nkjg7p",
+        "display_name": "aje86ak70stgu5nkjg7p"
+      },
+      "storage_class": "STANDARD"
+    }
+  ],
+  "name": "terraform-05-state-06e651edaf",
+  "max_keys": "1000",
+  "key_count": "1",
+  "request_id": "2517ab4e11312de9"
+}

@@ -1,0 +1,54 @@
+$ terraform console # valid defaults
+> [var.ip_address, var.ip_addresses]
+[
+  "192.168.0.1",
+  tolist([
+    "192.168.0.1",
+    "1.1.1.1",
+    "127.0.0.1",
+  ]),
+]
+
+$ terraform console # default for ip_address = "1920.1680.0.1"
+> var.ip_address
+
+Error: Invalid value for variable
+
+  on variables.tf line 5:
+   5: variable "ip_address" {
+    ├────────────────
+    │ var.ip_address is "1920.1680.0.1"
+
+Значение должно быть корректным IP-адресом.
+
+This was checked by the validation rule at variables.tf:11,3-13.
+
+
+Warning: Due to the problems above, some expressions may produce unexpected results.
+
+
+"1920.1680.0.1"
+
+$ terraform console # default for ip_addresses = ["192.168.0.1", "1.1.1.1", "1270.0.0.1"]
+> var.ip_addresses
+
+Error: Invalid value for variable
+
+  on variables.tf line 17:
+  17: variable "ip_addresses" {
+    ├────────────────
+    │ var.ip_addresses is list of string with 3 elements
+
+Каждый элемент списка должен быть корректным IP-адресом.
+
+This was checked by the validation rule at variables.tf:23,3-13.
+
+
+Warning: Due to the problems above, some expressions may produce unexpected results.
+
+
+tolist([
+  "192.168.0.1",
+  "1.1.1.1",
+  "1270.0.0.1",
+])

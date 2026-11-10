@@ -1,0 +1,24 @@
+$ terraform apply -target=terraform_data.backend_probe -lock-timeout=0s -input=false
+
+Error: Error acquiring the state lock
+
+Error message: operation error S3: PutObject, https response error
+StatusCode: 412, RequestID: 3d564954f0914101, HostID: , api error
+PreconditionFailed: At least one of the pre-conditions you specified did not
+hold
+Lock Info:
+  ID:        b1ad01a5-0571-11bb-e05f-f21940110fb4
+  Path:      terraform-05-state-06e651edaf/terraform.tfstate
+  Operation: OperationTypeInvalid
+  Who:       anton-sergeev@anton-sergeev-MEGABOOK-K16
+  Version:   1.12.0
+  Created:   2026-11-10 08:01:47.361452034 +0000 UTC
+  Info:
+
+
+Terraform acquires a state lock to protect the state from being written
+by multiple users at the same time. Please resolve the issue above and try
+again. For most commands, you can disable locking with the "-lock=false"
+flag, but this is not recommended.
+
+Exit code: 1

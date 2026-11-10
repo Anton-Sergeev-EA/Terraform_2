@@ -1,0 +1,30 @@
+Upstream: netology-code/ter-homeworks@90068eba4d48435608fca604f1614f5a991189c3
+TFLint 0.60.0 / Checkov 3.4.3. No Terraform initialization in upstream directories.
+
+04/src — TFLint
+4 issue(s) found:
+
+04/src/providers.tf:3:14: Warning - Missing version constraint for provider "yandex" in `required_providers` (terraform_required_providers)
+04/src/variables.tf:43:1: Warning - variable "vm_web_name" is declared but not used (terraform_unused_declarations)
+04/src/variables.tf:36:1: Warning - variable "vms_ssh_root_key" is declared but not used (terraform_unused_declarations)
+04/src/variables.tf:50:1: Warning - variable "vm_db_name" is declared but not used (terraform_unused_declarations)
+
+04/src — Checkov
+passed: 0, failed: 0, skipped: 0, parsing_errors: 0, resource_count: 0
+
+04/demonstration1 — TFLint
+6 issue(s) found:
+
+04/demonstration1/passwords/main.tf:8:1: Warning - Missing version constraint for provider "random" in `required_providers` (terraform_required_providers)
+04/demonstration1/vms/main.tf:23:20: Warning - Module source "git::https://github.com/udjin10/yandex_compute_instance.git?ref=main" uses a default branch as ref (main) (terraform_module_pinned_source)
+04/demonstration1/vms/main.tf:46:20: Warning - Module source "git::https://github.com/udjin10/yandex_compute_instance.git?ref=main" uses a default branch as ref (main) (terraform_module_pinned_source)
+04/demonstration1/vms/providers.tf:3:14: Warning - Missing version constraint for provider "yandex" in `required_providers` (terraform_required_providers)
+04/demonstration1/vms/main.tf:64:1: Warning - Missing version constraint for provider "template" in `required_providers` (terraform_required_providers)
+04/demonstration1/vms/variables.tf:3:1: Warning - variable "public_key" is declared but not used (terraform_unused_declarations)
+
+04/demonstration1 — Checkov
+passed: 0, failed: 4, skipped: 0, parsing_errors: 0, resource_count: 4
+CKV_TF_1 test-vm /vms/main.tf — Ensure Terraform module sources use a commit hash
+CKV_TF_2 test-vm /vms/main.tf — Ensure Terraform module sources use a tag with a version number
+CKV_TF_1 example-vm /vms/main.tf — Ensure Terraform module sources use a commit hash
+CKV_TF_2 example-vm /vms/main.tf — Ensure Terraform module sources use a tag with a version number

@@ -1,52 +1,65 @@
-# Продвинутые методы работы с Terraform
+# Использование Terraform в команде
 
-Выполнил Сергеев Антон.
+Выполнил Сергеев Антон. Terraform 1.12.0.
 
-Terraform `~> 1.12.0`. Два вызова закреплённого [удалённого модуля из демонстрации](https://github.com/netology-code/ter-homeworks/tree/main/04/demonstration1/vms) создают по одной прерываемой ВМ Ubuntu с метками `project=marketing` и `project=analytics`. Модуль [vpc](vpc/README.md) создаёт одну сеть и одну подсеть, затем отдаёт объект подсети в корневой модуль. Группа безопасности разрешает SSH с адресов из `ssh_cidrs`.
+Ветка `terraform-04` сохраняет исходный коммит ДЗ 4 `7dc042d`. От неё создана `terraform-05`. Предыдущий отчёт доступен в ветке `terraform-04`.
 
-Публичный SSH-ключ читается из файла, кодируется как JSON-массив и передаётся через `vars` в `data.template_file.cloudinit`. Массив в JSON синтаксически допустим в YAML. Cloud-init передаёт его в `ssh_authorized_keys` и устанавливает nginx через `packages`. [Пример настройки cloud-init](https://oneuptime.com/blog/post/2026-03-02-how-to-use-cloud-init-with-terraform-for-ubuntu-provisioning/view).
+## Задания 0–1
 
-## Запуск
+В первом сообщении сразу формулируйте запрос и давайте контекст, чтобы коллега мог ответить без дополнительного ожидания. [«Не привет»](https://neprivet.com/).
 
-Проверено на Linux amd64. Понадобятся Terraform 1.12.x, сервисный аккаунт с правами Compute и VPC и пара SSH-ключей. Укажите путь к авторизованному ключу сервисного аккаунта, путь к публичному ключу и входной CIDR для SSH. Настройки и state хранятся локально.
+Проверены `04/src` и `04/demonstration1` без `terraform init`. Типы замечаний без дублей:
+
+| Тип | Правила |
+| --- | --- |
+| Для провайдера не указан диапазон версий | TFLint `terraform_required_providers` |
+| Переменная объявлена и не используется | TFLint `terraform_unused_declarations` |
+| Удалённый модуль ссылается на изменяемую ветку `main` вместо фиксированной версии | TFLint `terraform_module_pinned_source`, Checkov `CKV_TF_1` и `CKV_TF_2` |
+
+В `04/src` Checkov 3.4.3 не нашёл применимых проверок. В `04/demonstration1` обе проверки фиксации версии сработали на каждом из двух модулей. [Вывод аудита](evidence/upstream-audit.txt).
+
+## Задание 2. S3 и блокировка
+
+Создан приватный бакет Object Storage с версионированием. Отдельный сервисный аккаунт получил READ и WRITE через ACL этого бакета. Ключ S3 хранится во внешнем профиле AWS. [Настройки бакета](evidence/settings.png), [объект state](evidence/objects.png), [вывод YC CLI](evidence/bucket-settings.txt).
+
+Для воспроизведения настройте свой приватный бакет и профиль, заполните имя бакета в `backend.s3.tfbackend` и перенесите параметры облака в `personal.auto.tfvars` из `terraform.tfvars.example`. Провайдер Yandex использует отдельный авторизованный ключ для чтения данных облака.
 
 ```bash
+cp backend.s3.tfbackend.example backend.s3.tfbackend
 cp terraform.tfvars.example personal.auto.tfvars
-# Заполнить personal.auto.tfvars и при необходимости переопределить пути к ключам.
+export AWS_PROFILE=terraform-05
+export AWS_SHARED_CREDENTIALS_FILE="$HOME/.config/terraform-team/credentials"
 export TF_CLI_CONFIG_FILE="$PWD/.terraformrc"
-terraform init
-terraform fmt -check -recursive
-terraform validate
-terraform plan -out=deploy.tfplan
-terraform apply deploy.tfplan
-terraform-docs markdown table vpc > vpc/README.md
+terraform init -migrate-state -backend-config=backend.s3.tfbackend
+terraform state list
 ```
 
-## Работа со state
+В ДЗ 4 инфраструктура уже была удалена. Для миграции в локальном backend создан `terraform_data.backend_probe` через `terraform apply -target=terraform_data.backend_probe`. ID маркера совпал в локальной копии и удалённом state. [Скриншот миграции](evidence/migration.png), [журнал](evidence/state-migration.txt).
 
-До удаления из state сохраните четыре ID из `terraform show -json`: сеть, подсеть и две ВМ. Группа безопасности остаётся в state. Два источника данных образов Terraform читает заново при построении плана. `state rm` снимает привязку Terraform без удаления объектов из облака.
+Файловая блокировка S3 появилась в Terraform 1.10. Объект блокировки для этого backend называется `terraform.tfstate.tflock`. [Релиз Terraform 1.10](https://github.com/hashicorp/terraform/releases/tag/v1.10.0), [документация S3 backend](https://developer.hashicorp.com/terraform/language/backend/s3).
 
 ```bash
-terraform state list
-terraform state rm module.vpc_dev module.marketing_vm module.analytics_vm
-terraform state list
-# Добавить imports.tf с блоком import на каждый из четырёх сохранённых ID.
-terraform plan -out=import.tfplan
-terraform apply import.tfplan
-# Убрать временный imports.tf, затем проверить обычный план.
-terraform state list
-terraform plan -detailed-exitcode
+# Терминал 1, удерживает lock
+terraform console
+# Терминал 2, тот же каталог
+terraform apply -target=terraform_data.backend_probe -lock-timeout=0s -input=false
+terraform force-unlock -force <LOCK_ID>
 ```
 
-Точные адреса и блоки импорта приведены в [журнале обратного импорта](evidence/state-imported.txt). План вернул четыре импорта, ноль добавлений и удалений. Два обновления восстановили флаг провайдера `allow_stopping_for_update` у импортированных ВМ. Следующий обычный план показал `No changes` с кодом возврата 0.
+`apply` вернул `Error acquiring the state lock` и HTTP 412. После `force-unlock` первая консоль завершена, а повторный целевой план захватил блокировку и показал `No changes`. В командной работе принудительное снятие допустимо для блокировки, чей владелец больше не выполняет операцию. [Скриншот](evidence/lock.png), [ошибка](evidence/state-lock.txt), [снятие блокировки](evidence/force-unlock.txt).
 
-## Доказательства
+## Задание 3. Hotfix
 
-- [ВМ и метки в Yandex Cloud](evidence/vm-labels.png)
-- [Подключение по SSH и nginx -t](evidence/nginx.png), [вывод команды](evidence/nginx.txt)
-- [Вывод terraform console для marketing_vm](evidence/module-marketing.png) и [vpc_dev](evidence/module-vpc.png)
-- [State до удаления](evidence/state-before.png), [после удаления](evidence/state-removed.png) и [после обратного импорта](evidence/state-imported.png)
-- [Итоговый план](evidence/plan-after-import.txt)
-- [Подтверждение очистки](evidence/cleanup.txt)
+Исправления и результаты проверки находятся в ветке `terraform-hotfix`. Pull request направлен в `terraform-05`. Полный план оценивает конфигурацию ДЗ 4 с текущим state. Для проверки backend использован только локальный маркер Terraform.
 
-Скриншоты CLI сделаны в локальном просмотрщике фактического вывода команд. Значения IP и ID относятся к учебному запуску.
+## Задание 4. Валидация IP
+
+`validation/variables.tf` проверяет отдельный IP через `can(cidrhost(...))`, а список через `alltrue` по всем элементам. Скрипт проверяет корректные defaults и подставляет по одному ошибочному default в временной копии.
+
+```bash
+bash validation/check-defaults.sh
+```
+
+Terraform Console выводит диагностику `Invalid value for variable` для обоих неверных defaults. Скрипт проверяет именно текст диагностики, поскольку консоль может завершиться с кодом 0. [Скриншот](evidence/validation.png), [вывод](evidence/ip-validation.txt).
+
+Снимки CLI показывают фактический вывод команд в локальном просмотрщике.
